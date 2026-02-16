@@ -48,7 +48,7 @@ def add_opportunity_note(opportunity, note):
     
     # Simple check: Is the user the creator or is the email matching?
     # You can expand this to check Lead/Customer links
-    if opp.owner != frappe.session.user and opp.contact_email != frappe.session.user:
+    if opp.opportunity_owner != frappe.session.user and opp.contact_email != frappe.session.user:
         frappe.throw("You do not have permission to add notes to this project.", frappe.PermissionError)
 
     # 3. Add the note

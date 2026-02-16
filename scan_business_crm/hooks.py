@@ -262,7 +262,8 @@ portal_menu_items = [
 ]
 
 # your_app/hooks.py
-# website_route_rules = [
-#     {"from_route": "/opportunities", "to_route": "opportunities"},
-#     {"from_route": "/cp/project_room", "to_route": "project_room"},
-# ]
+website_route_rules = [
+    {"from_route": "/opportunities", "to_route": "opportunities"},
+    {"from_route": "/cp/project_room", "to_route": "cp/project_room"}
+]
+

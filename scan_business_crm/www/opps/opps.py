@@ -14,7 +14,7 @@ def get_context(context):
 
     opportunities = frappe.get_all("Opportunity",
         filters=[
-            ["Opportunity", "name", "in", shared_with_user],
+            ["Opportunity", "name", "in", shared_with_user]
         ],
         fields=["name", "contact_email", "opportunity_owner", "title", "status"],
         ignore_permissions=True # ONLY for testing!
