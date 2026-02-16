@@ -17,16 +17,17 @@ function refreshData() {
             name: window.oppName
         },
         callback: (r) => {
+            console.log(r)
             const doc = r.message;
+            renderChat(doc.notes || []);
             // Map Opportunity details to UI
             document.getElementById('opp-title').innerText = doc.opportunity_from === 'Lead' ? doc.lead_name : doc.customer_name;
-            document.getElementById('opp-id').innerText = doc.name;
-            document.getElementById('opp-status').innerText = doc.status;
-            document.getElementById('opp-res').innerText = doc.custom_resolution || 'N/A';
-            document.getElementById('opp-date').innerText = doc.transaction_date;
-            document.getElementById('opp-material').innerText = doc.custom_material || 'N/A';
+            document.getElementById('opp-id').innerText = `Opportunity Number: ${doc.name}`;
+            document.getElementById('opp-status').innerText = `State: ${doc.status}`;
+            document.getElementById('opp-res').innerText = `Resolution: ${doc.custom_resolution || 'N/A'}`;
+            document.getElementById('opp-date').innerText = `Date: ${doc.transaction_date}`;
+            document.getElementById('opp-material').innerText = `doc.custom_material` || 'N/A';
 
-            renderChat(doc.notes || []);
         }
     });
 }

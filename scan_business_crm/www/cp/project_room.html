@@ -4,13 +4,13 @@
 <div class="container my-4">
     <div class="card mb-4 shadow-sm">
         <div class="card-body">
-            <h2>{{ doc.customer_name or doc.lead_name or "Project Detail" }}</h2>
-            <p class="text-muted">{{ doc.name }}</p>
+            <h2 class="text-primay" id="opp-title"></h2>
+            <p class="text-muted" id="opp-id"></p>
             <hr>
             <div class="row">
-                <div class="col-md-4"><strong>Status:</strong> {{ doc.status }}</div>
-                <div class="col-md-4"><strong>Resolution:</strong> {{ doc.custom_resolution or 'N/A' }}</div>
-                <div class="col-md-4"><strong>Date:</strong> {{ doc.get_formatted("transaction_date") }}</div>
+                <div class="col-md-4" id="opp-status"></div>
+                <div class="col-md-4" id="opp-res"></div>
+                <div class="col-md-4" id="opp-date"></div>
             </div>
         </div>
     </div>
@@ -25,8 +25,4 @@
     </div>
 </div>
 
-<script>
-    // Pass the doc name to JS
-    window.oppName = "{{ doc.name }}";
-</script>
 {% endblock %}
