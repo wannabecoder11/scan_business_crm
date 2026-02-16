@@ -144,6 +144,11 @@ app_license = "mit"
 # 		"on_trash": "method"
 # 	}
 # }
+doc_events = {
+    "Lead": {
+        "after_insert": "scan_business_crm.logic.lead.handle_lead_automation"
+    }
+}
 
 # Scheduled Tasks
 # ---------------
