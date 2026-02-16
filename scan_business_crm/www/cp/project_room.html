@@ -1,0 +1,32 @@
+{% extends "templates/web.html" %}
+
+{% block page_content %}
+<div class="container my-4">
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <h2>{{ doc.customer_name or doc.lead_name or "Project Detail" }}</h2>
+            <p class="text-muted">{{ doc.name }}</p>
+            <hr>
+            <div class="row">
+                <div class="col-md-4"><strong>Status:</strong> {{ doc.status }}</div>
+                <div class="col-md-4"><strong>Resolution:</strong> {{ doc.custom_resolution or 'N/A' }}</div>
+                <div class="col-md-4"><strong>Date:</strong> {{ doc.get_formatted("transaction_date") }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-section bg-light p-3 rounded shadow-sm">
+        <div id="chat-box" style="height: 400px; overflow-y: auto;">
+            </div>
+        <div class="input-group mt-3">
+            <textarea id="new-note" class="form-control" rows="2"></textarea>
+            <button onclick="sendNote()" class="btn btn-primary">Send</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Pass the doc name to JS
+    window.oppName = "{{ doc.name }}";
+</script>
+{% endblock %}

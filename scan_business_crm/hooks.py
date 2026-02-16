@@ -252,3 +252,17 @@ doc_events = {
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
+has_permission = {
+    "Opportunity": "scan_business_crm.logic.lead.has_app_permission"
+}
+
+portal_menu_items = [
+    # {"title": "My 3D Scans", "route": "/project_room", "role": "Customer"},
+    {"title": "My Discussions", "route": "/opps/opps", "role": "Customer"}
+]
+
+# your_app/hooks.py
+# website_route_rules = [
+#     {"from_route": "/opportunities", "to_route": "opportunities"},
+#     {"from_route": "/cp/project_room", "to_route": "project_room"},
+# ]

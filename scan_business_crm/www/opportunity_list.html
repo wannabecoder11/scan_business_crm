@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>My Opportunities</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; }
+      h1 { margin-bottom: 12px }
+      .opps-list { margin-top: 12px }
+      .opps-list li { margin: 8px 0 }
+      .meta { color: #666; font-size: 0.9em }
+    </style>
+  </head>
+  <body>
+    <h1>My Opportunities</h1>
+    <div id="status">Loading...</div>
+    <div class="opps-list" id="opps"></div>
+
+    <script>
+      async function loadOpportunities() {
+ try {
+    // frappe.xcall is the Promisified version of frappe.call
+    const ops = await frappe.xcall('scan_business_crm.scan_business_crm.logic.lead.get_user_opportunities');
+    
+    const status = document.getElementById('status');
+    const container = document.getElementById('opps');
+    status.textContent = '';
+
+    if (!ops || !ops.length) {
+        container.innerHTML = '<p>No opportunities found for your account.</p>';
+        return;
+    }
+
+    const ul = document.createElement('ul');
+    ops.forEach(o => {
+        const li = document.createElement('li');
+        
+        // Link logic
+        const link = document.createElement('a');
+        // NOTE: Use /project_room?name= instead of /desk if this is for customers!
+        link.href = '/project_room?name=' + encodeURIComponent(o.name);
+        link.textContent = o.title || o.name;
+        
+        li.appendChild(link);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = `${o.party_name ? o.party_name + ' • ' : ''}${o.status || ''}${o.expected_closing_date ? ' • ' + o.expected_closing_date : ''}`;
+        
+        li.appendChild(meta);
+        ul.appendChild(li);
+    });
+    container.appendChild(ul);
+
+} catch (err) {
+    console.error('Error fetching opportunities:', err);
+    document.getElementById('status').textContent = 'Error loading projects.';
+}
+      }
+
+      document.addEventListener('DOMContentLoaded', loadOpportunities);
+    </script>
+  </body>
+</html>
