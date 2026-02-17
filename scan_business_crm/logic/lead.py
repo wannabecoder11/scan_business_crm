@@ -4,39 +4,58 @@ import frappe
 def handle_lead_automation(doc, method):
 	"""
 	doc: The Lead record being saved
-	method: The event (e.g., after_insert)
 	"""
 	if doc.custom_send_invite_and_open_discussion and doc.email_id:
-		# 1. Create Opportunity
-		if not frappe.db.exists("Opportunity", {"party_name": doc.name}):
+		
+		# 1. Create Customer first (so Opportunity and User can link to it)
+		customer_name = doc.lead_name or doc.company_name
+		if not frappe.db.exists("Customer", {"email_id": doc.email_id}):
+			customer = frappe.get_doc({
+				"doctype": "Customer",
+				"customer_name": customer_name,
+				"customer_type": "Individual" if not doc.company_name else "Company",
+				"email_id": doc.email_id,
+				"lead_name": doc.name,
+				"territory": doc.territory or "All Territories",
+				"customer_group": "All Customer Groups"
+			})
+			customer.insert(ignore_permissions=True)
+			target_customer = customer.name
+		else:
+			target_customer = frappe.db.get_value("Customer", {"email_id": doc.email_id}, "name")
+
+		# 2. Create Opportunity
+		# Linked to Customer instead of Lead for better portal flow
+		if not frappe.db.exists("Opportunity", {"party_name": target_customer, "status": "Open"}):
 			opp = frappe.get_doc({
 				"doctype": "Opportunity",
-				"opportunity_from": "Lead",
-				"party_name": doc.name,
-				"title": f"Scan Project: {doc.lead_name}",
+				"opportunity_from": "Customer",
+				"party_name": target_customer,
+				"contact_email": doc.email_id,
+				"title": f"Scan Project: {customer_name}",
 				"company": doc.company or frappe.db.get_default("company")
 			})
 			opp.insert(ignore_permissions=True)
+			opp_name = opp.name
+		else:
+			opp_name = frappe.db.get_value("Opportunity", {"party_name": target_customer, "status": "Open"}, "name")
 
-			# 2. Create/Invite User
-			if not frappe.db.exists("User", doc.email_id):
-				user = frappe.get_doc({
-					"doctype": "User",
-					"email": doc.email_id,
-					"first_name": doc.lead_name,
-					"user_type": "Website User",
-					"send_welcome_email": 1,
-				})
-				user.insert(ignore_permissions=True)
-				user.add_roles("Customer")
-
-			# 3. Handle Sharing (DocShare is safe here!)
-			if not frappe.db.exists(
-				"DocShare",
-				{"share_doctype": "Opportunity", "share_name": opp.name, "user": doc.email_id},
-			):
-				frappe.share.add("Opportunity", opp.name, doc.email_id, read=1, write=1, notify=1)
-@frappe.whitelist()
+		# 3. Create/Invite User
+		if not frappe.db.exists("User", doc.email_id):
+			user = frappe.get_doc({
+				"doctype": "User",
+				"email": doc.email_id,
+				"first_name": doc.lead_name,
+				"user_type": "Website User",
+				"send_welcome_email": 1,
+			})
+			user.insert(ignore_permissions=True)
+			user.add_roles("Customer")
+		
+		# 4. Handle Sharing
+		# We share the Opportunity with the User so they can see it in their list
+		if not frappe.db.exists("DocShare", {"share_doctype": "Opportunity", "share_name": opp_name, "user": doc.email_id}):
+			frappe.share.add("Opportunity", opp_name, doc.email_id, read=1, write=1, notify=1)@frappe.whitelist()
 def add_opportunity_note(opportunity, note):
     # 1. Security Check: Is the user logged in?
     if frappe.session.user == "Guest":
