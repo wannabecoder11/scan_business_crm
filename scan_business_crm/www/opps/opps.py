@@ -21,6 +21,6 @@ def get_context(context):
     )
 
     context.opportunities = opportunities #["test-opportunity", "test-opportunities2"] 
-    context.title = ("My 3D Scan Projects")
+    context.title = ("Your 3D Scan Projects")
     context.user = user
     return context
