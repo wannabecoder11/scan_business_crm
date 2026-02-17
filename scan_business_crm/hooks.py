@@ -266,9 +266,16 @@ portal_menu_items = [
 
 # your_app/hooks.py
 website_route_rules = [
-    {"from_route": "/opportunities", "to_route": "opportunities"},
+    {"from_route": "/opps/opps", "to_route": "opps/opps"},
     {"from_route": "/cp/project_room", "to_route": "cp/project_room"}
 ]
 
 # Force redirect after login
-login_redirect_url = "/opportunities"
+login_redirect_url = "/opps/opps"
+
+
+# Ensure that if they try to go to /me or /profile, they also get sent to your list
+role_home_page = {
+    "Customer": "/opps/opps",
+    "Website User": "/opps/opps"
+}
