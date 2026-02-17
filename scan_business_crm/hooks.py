@@ -144,15 +144,6 @@ app_license = "mit"
 # 		"on_trash": "method"
 # 	}
 # }
-doc_events = {
-    "Lead": {
-        "after_insert": "scan_business_crm.logic.lead.handle_lead_automation"
-    },
-    "Opportunity": {
-        "after_insert": "scan_business_crm.logic.portal.create_customer_account"
-    }
-}
-
 # Scheduled Tasks
 # ---------------
 
@@ -279,3 +270,13 @@ role_home_page = {
     "Customer": "/opps/opps",
     "Website User": "/opps/opps"
 }
+
+doc_events = {
+    "Lead": {
+        "after_insert": "scan_business_crm.logic.lead.handle_lead_automation"
+    } #,
+    # "Opportunity": {
+    #     "after_insert": "scan_business_crm.logic.portal.create_customer_account"
+    # }
+}
+
