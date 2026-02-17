@@ -147,6 +147,9 @@ app_license = "mit"
 doc_events = {
     "Lead": {
         "after_insert": "scan_business_crm.logic.lead.handle_lead_automation"
+    },
+    "Opportunity": {
+        "after_insert": "scan_business_crm.logic.portal.create_customer_account"
     }
 }
 
@@ -267,3 +270,5 @@ website_route_rules = [
     {"from_route": "/cp/project_room", "to_route": "cp/project_room"}
 ]
 
+# Force redirect after login
+login_redirect_url = "/opportunities"
