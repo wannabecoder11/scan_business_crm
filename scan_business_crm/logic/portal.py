@@ -1,6 +1,6 @@
 import frappe
 from frappe.utils import random_string
-
+# this function not being used
 def create_customer_account(doc, method):
     # Only run for new leads/opportunities with an email
     if not doc.contact_email:
