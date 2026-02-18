@@ -1,4 +1,5 @@
 import frappe
+from frappe.contacts.doctype.contact.contact import get_contact_name
 
 def handle_lead_automation(doc, method):
 	"""Create a Customer/Opportunity for a Lead and enqueue user creation.
@@ -11,114 +12,50 @@ def handle_lead_automation(doc, method):
 	if not (getattr(doc, "custom_send_invite_and_open_discussion", False) and getattr(doc, "email_id", None)):
 		return
 
-	# 1. Create Customer first (so Opportunity and User can link to it)
-	customer_name = getattr(doc, "lead_name", None) or getattr(doc, "company_name", None) or "Customer"
-	target_customer = None
-	try:
-		if not frappe.db.exists("Customer", {"email_id": doc.email_id}):
-			customer = frappe.get_doc(
-				{
-					"doctype": "Customer",
-					"customer_name": customer_name,
-					"customer_type": "Individual" if not getattr(doc, "company_name", None) else "Company",
-					"email_id": doc.email_id,
-					"lead_name": doc.name,
-					"territory": getattr(doc, "territory", "All Territories"),
-					"customer_group": "All Customer Groups",
-				}
-			)
-			customer.insert(ignore_permissions=True)
-			target_customer = customer.name
-			frappe.msgprint(f"Customer created: {target_customer}")
-		else:
-			target_customer = frappe.db.get_value("Customer", {"email_id": doc.email_id}, "name")
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "handle_lead_automation: create customer failed")
+	# /Create User in background (avoid blocking the request)
 
-	# 2. Create Opportunity (linked to Customer)
-	# opp_name = None
-	# try:
-	# 	if target_customer:
-	# 		if not frappe.db.exists("Opportunity", {"party_name": target_customer, "status": "Open"}):
-	# 			opp = frappe.get_doc(
-	# 				{
-	# 					"doctype": "Opportunity",
-	# 					"opportunity_from": "Customer",
-	# 					"party_name": target_customer,
-	# 					"contact_email": doc.email_id,
-	# 					"title": f"Scan Project: {customer_name}",
-	# 					"company": doc.company or frappe.db.get_default("company"),
-	# 				}
-	# 			)
-	# 			opp.insert(ignore_permissions=True)
-	# 			doc_name = getattr(opp, "name", None)
-	# 			opp_name = doc_name or opp.name
-	# 			frappe.msgprint(f"Opportunity created: {opp_name}")
-	# 		else:
-	# 			opp_name = frappe.db.get_value("Opportunity", {"party_name": target_customer, "status": "Open"}, "name")
-	# except Exception:
-	# 	frappe.log_error(frappe.get_traceback(), "handle_lead_automation: create opportunity failed")
+	if frappe.db.exists("User", doc.email_id):
+		frappe.msgprint('User already exists')
+		return
+	email = doc.email_id
+	user = frappe.get_doc(
+		{
+			"doctype": "User",
+			"email": email,
+			"first_name": doc.first_name or email.split("@")[0],
+			"user_type": "Website User",
+			"send_welcome_email": 1,
+		}
+	)
+	user.insert(ignore_permissions=True)
+	frappe.msgprint(f"User account created for {email}")
+	
+	# Send welcome email from the background worker (may fail without blocking callers)
+	user.add_roles("Customer")
 
-	# 3. Enqueue/Create User in background (avoid blocking the request)
-	try:
-		if not frappe.db.exists("User", doc.email_id):
-			frappe.enqueue(
-				"scan_business_crm.logic.lead.create_customer_user_background",
-				queue="short",
-				timeout=300,
-				email=doc.email_id,
-				first_name=getattr(doc, "lead_name", None),
-			)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "handle_lead_automation: enqueue create user failed")
+	#link lead to customer
+	# if target_customer:
+	# #	frappe.db.set_value("Lead", doc.name, "customer", target_customer)
+	# 	frappe.db.set_value("Customer", target_customer, "lead_name", doc.name)
+	# link lead to user
+	# frappe.db.set_value("Lead", doc.name, "user_id", email)
 
-	# 4. Handle Sharing
-	try:
-		if opp_name:
-			if not frappe.db.exists("DocShare", {"share_doctype": "Opportunity", "share_name": opp_name, "user": doc.email_id}):
-				frappe.share.add(
-					"Opportunity",
-					opp_name,
-					doc.email_id,
-					read=1,
-					write=1,
-					notify=1,
-					flags={"ignore_share_permission": True},
-				)
-				frappe.msgprint(f"Opportunity {opp_name} shared with {doc.email_id}")
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "handle_lead_automation: sharing failed")
 
-		
-		def create_customer_user_background(email, first_name=None):
-			"""Background job: create a Website User and send welcome email.
+	# 2. Create or Update the Contact
+	contact_name = get_contact_name(email)
+	if not contact_name:
+		contact = frappe.get_doc({
+			"doctype": "Contact",
+			"first_name": doc.first_name or customer_name,
+			"email_ids": [{"email_id": email, "is_primary": 1}]
+		})
+		contact.insert(ignore_permissions=True)
+		contact_name = contact.name
+		frappe.msgprint(f"Contact created: {contact_name}")
+	else:
+		contact = frappe.get_doc("Contact", contact_name)
 
-			This runs in a worker process (enqueued from `handle_lead_automation`).
-			"""
-			try:
-				if frappe.db.exists("User", email):
-					return
 
-				user = frappe.get_doc(
-					{
-						"doctype": "User",
-						"email": email,
-						"first_name": first_name or email.split("@")[0],
-						"user_type": "Website User",
-						"send_welcome_email": 0,
-					}
-				)
-				user.insert(ignore_permissions=True)
-				user.add_roles("Customer")
-
-				# Send welcome email from the background worker (may fail without blocking callers)
-				try:
-					if hasattr(user, "send_welcome_email"):
-						user.send_welcome_email()
-				except Exception:
-					frappe.log_error(frappe.get_traceback(), "create_customer_user_background: send welcome failed")
-			except Exception:
-				frappe.log_error(frappe.get_traceback(), "create_customer_user_background: create user failed")
 
 def add_opportunity_note(opportunity, note):
     # 1. Security Check: Is the user logged in?
@@ -128,7 +65,7 @@ def add_opportunity_note(opportunity, note):
     # 2. Security Check: Does the user own this Opportunity?
     # We check if the Opportunity is linked to a Lead/Customer associated with this user
     opp = frappe.get_doc("Opportunity", opportunity)
-    
+
     # Simple check: Is the user the creator or is the email matching?
     # You can expand this to check Lead/Customer links
     if opp.opportunity_owner != frappe.session.user and opp.contact_email != frappe.session.user:
@@ -140,7 +77,7 @@ def add_opportunity_note(opportunity, note):
         "added_by": frappe.session.user,
         "added_on": frappe.utils.now_datetime()
     })
-    
+
     opp.save(ignore_permissions=True)
     return "Success"
 
@@ -210,3 +147,69 @@ def has_app_permission(doc, ptype, user=None, debug=False):
 			return True
 
 	return False
+
+# create customer from opportunity
+def create_customer(doc, method):
+	# 1. Create Customer first (so Opportunity and User can link to it)
+	email = doc.email_id
+	customer_name = getattr(doc, "lead_name", None) or getattr(doc, "company_name", None) or "Customer"
+	target_customer = None
+	try:
+		if not frappe.db.exists("Customer", {"email_id": doc.email_id}):
+			customer = frappe.get_doc(
+				{
+					"doctype": "Customer",
+					"customer_name": customer_name,
+					"customer_type": "Individual" if not getattr(doc, "company_name", None) else "Company",
+					"email_id": doc.email_id,
+					"lead_name": doc.name,
+					"territory": getattr(doc, "territory", "All Territories"),
+					"customer_group": "All Customer Groups",
+				}
+			)
+			customer.insert(ignore_permissions=True)
+			target_customer = customer.name
+			frappe.msgprint(f"Customer created: {target_customer}")
+		else:
+			target_customer = frappe.db.get_value("Customer", {"email_id": doc.email_id}, "name")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "handle_lead_automation: create customer failed")
+	# 3. Link the Contact to the Customer
+	# This is the "secret sauce" that lets the User see Customer data in the portal
+	contact_name = get_contact_name(email)
+	if not contact_name:
+		contact = frappe.get_doc({
+			"doctype": "Contact",
+			"first_name": customer_name,
+			"email_ids": [{"email_id": email, "is_primary": 1}]})
+		contact.insert(ignore_permissions=True)
+		contact_name = contact.name
+		frappe.msgprint(f"Contact created: {contact_name}")
+	else:
+		contact = frappe.get_doc("Contact", contact_name)	
+	contact.append("links", {
+		"link_doctype": "Customer",
+		"link_name": target_customer
+	})
+	contact.save(ignore_permissions=True)
+
+#
+def share_opportunity_with_user(doc, method):
+	"""Share the Opportunity with the contact email when an Opportunity is created from a Lead."""
+	try:
+		if doc.opportunity_from == "Lead" and doc.contact_email:
+			if not frappe.db.exists("DocShare", {"share_doctype": "Opportunity", "share_name": doc.name, "user": doc.contact_email}):
+				frappe.share.add(
+					"Opportunity",
+					doc.name,
+					doc.contact_email,
+					read=1,
+					write=1,
+					notify=1,
+					flags={"ignore_share_permission": True},
+				)
+				# frappe.msgprint(f"Opportunity {doc.name} shared with {doc.contact_email}")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "share_opportunity_with_user: sharing failed")
+
+
