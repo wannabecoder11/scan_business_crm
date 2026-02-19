@@ -274,9 +274,9 @@ role_home_page = {
 doc_events = {
     "Lead": {
         "after_insert": "scan_business_crm.logic.lead.handle_lead_automation"
-    } #,
-    # "Opportunity": {
-    #     "after_insert": "scan_business_crm.logic.portal.create_customer_account"
-    # }
+    },
+    "Opportunity": {
+        "after_insert": "scan_business_crm.logic.lead.share_opportunity_with_user"
+    }
 }
 

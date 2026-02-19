@@ -193,23 +193,20 @@ def create_customer(doc, method):
 	})
 	contact.save(ignore_permissions=True)
 
-#
+@frappe.whitelist()
 def share_opportunity_with_user(doc, method):
 	"""Share the Opportunity with the contact email when an Opportunity is created from a Lead."""
-	try:
-		if doc.opportunity_from == "Lead" and doc.contact_email:
-			if not frappe.db.exists("DocShare", {"share_doctype": "Opportunity", "share_name": doc.name, "user": doc.contact_email}):
-				frappe.share.add(
-					"Opportunity",
-					doc.name,
-					doc.contact_email,
-					read=1,
-					write=1,
-					notify=1,
-					flags={"ignore_share_permission": True},
-				)
-				# frappe.msgprint(f"Opportunity {doc.name} shared with {doc.contact_email}")
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "share_opportunity_with_user: sharing failed")
-
-
+	if doc.opportunity_from == "Lead" and doc.contact_email:
+		if not frappe.db.exists("DocShare", {"share_doctype": "Opportunity", "share_name": doc.name, "user": doc.contact_email}):
+			frappe.share.add(
+				"Opportunity",
+				doc.name,
+				doc.contact_email,
+				read=1,
+				write=1,
+				notify=1,
+				# flags={"ignore_share_permission": True}, # commented as it was throwing errors
+			)
+			frappe.msgprint(f"Opportunity {doc.name} shared with {doc.contact_email}")
+		else:
+			frappe.msgprint(f"Opportunity {doc.name} is already shared with {doc.contact_email}")
